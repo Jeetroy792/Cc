@@ -9,3 +9,5 @@ ffmpeg
 ffprobe
 asyncio
 humanize
+gunicorn
+flask
