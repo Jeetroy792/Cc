@@ -124,8 +124,8 @@ async def account_login(bot: Client, m: Message):
     working_token = input4.text
     await input4.delete(True)
 
-    await editable.edit("Now send the **Thumb url**\nEg : ```https://telegra.ph/file/0633f8b6a6f110d34f044.jpg```\n\nor Send No`")
-    input6 = message = await bot.listen(editable.chat.id)
+    await editable.edit("Now send the **Thumb url**\nEg")
+    input6: Message = await bot.listen(editable.chat.id)
     raw_text6 = input6.text
     await input6.delete(True)
     await editable.delete()
@@ -155,7 +155,7 @@ async def account_login(bot: Client, m: Message):
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
 
             elif 'classplusapp' in url or "testbook.com" in url or "classplusapp.com/drm" in url or "media-cdn.classplusapp.com/drm" in url:
-                url, contentId = url.split('&contentHashIdl=')
+                url, contentId = url.split('&')
                 
                 headers = {
                     'host': 'api.classplusapp.com',
@@ -179,13 +179,7 @@ async def account_login(bot: Client, m: Message):
                     'offlineDownload': "false"
                 }
 
-                res = requests.get("https://api.classplusapp.com/cams/uploader/video/jw-signed-url", params=params, headers=headers).json()
-                
-                if "testbook.com" in url or "classplusapp.com/drm" in url or "media-cdn.classplusapp.com/drm" in url:
-                    url = res['drmUrls']['manifestUrl']
-                    
-                else:
-                    url = res["url"]
+                url = requests.get("https://api.classplusapp.com/cams/uploader/video/jw-signed-url", params=params, headers=headers).json().get("url")
 
             elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
                 url = f"https://anonymouspwplayer-907e62cf4891.herokuapp.com/pw?url={url}?token={working_token}"
