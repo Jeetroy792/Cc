@@ -8,7 +8,6 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import FloodWait
 from pyromod import listen
 from pyrogram.types import Message
-from pyrogram import Client, filters
 from p_bar import progress_bar
 from subprocess import getstatusoutput
 from aiohttp import ClientSession
@@ -20,6 +19,13 @@ from config import api_id, api_hash, bot_token, auth_users, sudo_users
 import sys
 import re
 import os
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def hello():
+    return "Bot is running!"
 
 bot = Client(
     "bot",
@@ -232,6 +238,5 @@ async def account_login(bot: Client, m: Message):
     except Exception as e:
         await m.reply_text(e)
     await m.reply_text("🔰Done Boss🔰")
-
 
 bot.run()
