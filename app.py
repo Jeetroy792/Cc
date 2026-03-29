@@ -3,6 +3,7 @@ import requests
 import json
 import subprocess
 from pyrogram import Client, filters
+from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import FloodWait
 from pyromod import listen
@@ -13,6 +14,7 @@ from aiohttp import ClientSession
 import helper
 import time
 import asyncio
+from pyrogram.types import User, Message
 from config import api_id, api_hash, bot_token, auth_users, sudo_users
 import sys
 import re
@@ -38,13 +40,16 @@ async def cancel_command(bot: Client, m: Message):
 
 @bot.on_message(filters.command(["start"]))
 async def account_login(bot: Client, m: Message):
+    
     editable = await m.reply_text(f"**Hey [{m.from_user.first_name}](tg://user?id={m.from_user.id})\nSend txt file**")
     input: Message = await bot.listen(editable.chat.id)
+    
     if input.document:
         x = await input.download()
         await input.delete(True)
         file_name, ext = os.path.splitext(os.path.basename(x))
         credit = f"[{m.from_user.first_name}](tg://user?id={m.from_user.id})"
+
         try:
             with open(x, "r") as f:
                 content = f.read()
@@ -70,6 +75,7 @@ async def account_login(bot: Client, m: Message):
     input0: Message = await bot.listen(editable.chat.id)
     raw_text = input0.text
     await input0.delete(True)
+
     await editable.edit("**Enter Batch Name or send d for grabing from text filename.**")
     input1: Message = await bot.listen(editable.chat.id)
     raw_text0 = input1.text
@@ -85,48 +91,54 @@ async def account_login(bot: Client, m: Message):
     input3: Message = await bot.listen(editable.chat.id)
     raw_text3 = input3.text
     await input3.delete(True)
-    credit = f"[{m.from_user.first_name}](tg://user?id={m.from_user.id})"
-    CR = credit if raw_text3 == 'de' else raw_text3
-    
+    CR = f"[{m.from_user.first_name}](tg://user?id={m.from_user.id})" if raw_text3 == 'de' else raw_text3
+
     await editable.edit("**Enter Your PW/Classplus Woking Token\n\nOtherwise Send No**")
     input4: Message = await bot.listen(editable.chat.id)
     working_token = input4.text
     await input4.delete(True)
-    
+
     await editable.edit("Now send the **Thumb url**\nEg")
     input6: Message = await bot.listen(editable.chat.id)
-    thumb = input6.text
+    thumb_url = input6.text
     await input6.delete(True)
     await editable.delete()
-    
-    if thumb.startswith("http"):
-        getstatusoutput(f"wget '{thumb}' -O 'thumb.jpg'")
+
+    if thumb_url.startswith("http"):
+        getstatusoutput(f"wget '{thumb_url}' -O 'thumb.jpg'")
         thumb = "thumb.jpg"
-    else: thumb = "No"
-    
+    else:
+        thumb = "No"
+
     count = int(raw_text) if len(links) > 1 else 1
-    
+
     try:
         for i in range(count - 1, len(links)):
+
             V = links[i][1].replace("file/d/","uc?export=download&id=").replace("www.youtube-nocookie.com/embed", "youtu.be").replace("?modestbranding=1", "").replace("/view?usp=sharing","")
             url = "https://" + V
-            
+
             if "visionias" in url:
                 async with ClientSession() as session:
                     async with session.get(url, headers={'User-Agent': 'Mozilla/5.0'}) as resp:
                         text = await resp.text()
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
+
             elif 'classplusapp' in url or "testbook.com" in url:
                 url, contentId = url.split('&')
                 headers = {'host': 'api.classplusapp.com', 'x-access-token': f'{working_token}', 'user-agent': 'Mobile-Android'}
                 params = {'contentId': contentId, 'offlineDownload': "false"}
                 url = requests.get("https://api.classplusapp.com/cams/uploader/video/jw-signed-url", params=params, headers=headers).json().get("url")
-            
-            name1 = links[i][0].replace("\t", "").replace(":", "").replace("/", "").strip()
+
+            elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
+                url = f"https://anonymouspwplayer-907e62cf4891.herokuapp.com/pw?url={url}?token={working_token}"
+                
+            name1 = links[i][0].replace("\t", "").replace(":", "").replace("/", "").replace("+", "").strip()
             name = f'{str(count).zfill(3)}) {name1[:60]}'
             
-            try:
+            try:                               
                 cc = f'** {str(count).zfill(3)}.** {name1}\n**Batch Name :** {b_name}\n\n**Downloaded by : {CR}**'
+                
                 if "drive" in url:
                     ka = await helper.download(url, name)
                     await bot.send_document(chat_id=m.chat.id, document=ka, caption=cc)
@@ -141,18 +153,26 @@ async def account_login(bot: Client, m: Message):
                     prog = await m.reply_text(f"**Downloading:-**\n`{name}`")
                     res_file = await helper.download_video(url, name, raw_text2)
                     
-                    # Tuple Error fix
-                    if isinstance(res_file, tuple):
-                        filename = res_file[0]
-                    else:
-                        filename = res_file
+                    if res_file is None:
+                        await prog.edit(f"**Failed (NoneType):** `{name}`")
+                        count += 1
+                        continue
                         
-                    await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name)
-                    count += 1
+                    filename = res_file[0] if isinstance(res_file, tuple) else res_file
+                    
+                    if filename and os.path.exists(filename):
+                        await prog.delete(True)
+                        await helper.send_vid(bot, m, cc, filename, thumb, name)
+                        count += 1
+                        os.remove(filename)
+                    else:
+                        await prog.edit(f"**File Not Found:** `{name}`")
+                        count += 1
+
             except Exception as e:
                 await m.reply_text(f"**Failed:** `{name}`\n{e}")
                 count += 1
+
     except Exception as e:
         await m.reply_text(str(e))
     await m.reply_text("🔰Done Boss🔰")
