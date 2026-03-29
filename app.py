@@ -33,7 +33,7 @@ bot = Client(
     api_hash=api_hash,
     bot_token=bot_token)
 
-# ... (আগের ইমপোর্টগুলো একই থাকবে)
+#...(all previous imports should be same)
 
 @bot.on_message(filters.command(["start"]))
 async def account_login(bot: Client, m: Message):
@@ -43,46 +43,52 @@ async def account_login(bot: Client, m: Message):
     links = []
     file_name = "downloaded_file"
 
+    # ১. ফাইল বা টেক্সট থেকে লিঙ্ক সংগ্রহ
     if input_msg.document:
         x = await input_msg.download()
         file_name, ext = os.path.splitext(os.path.basename(x))
         with open(x, "r") as f:
             content = f.read().splitlines()
         os.remove(x)
-    else:
+    elif input_msg.text:
         content = input_msg.text.splitlines()
+    else:
+        await m.reply_text("Invalid input! 🥲")
+        return
 
-    # লিঙ্ক প্রসেসিং - এখানে ভুল হওয়ার সম্ভাবনা বেশি ছিল
     for line in content:
         if "://" in line:
-            # line.split("://", 1) একটি লিস্ট দেয়, আমরা সেটাকে আলাদা ভেরিয়েবলে নিচ্ছি
             parts = line.split("://", 1)
             if len(parts) == 2:
-                links.append((parts[0], parts[1])) # Tuple আকারে সেভ করছি
+                links.append((parts[0], parts[1]))
 
     if not links:
         await m.reply_text("No valid links found! 🥲")
         return
 
-    await editable.edit(f"Total links found: **{len(links)}**\nSend start index (Default is 1):")
-    input0: Message = await bot.listen(editable.chat.id)
-    raw_text = input0.text if input0.text else "1"
-    count = int(raw_text)
+    # ২. ইউজার থেকে প্রয়োজনীয় তথ্য গ্রহণ
+    await editable.edit(f"Total links found: **{len(links)}**\nSend start index (Default 1):")
+    input0 = await bot.listen(editable.chat.id)
+    count = int(input0.text) if input0.text and input0.text.isdigit() else 1
 
     await editable.edit("**Enter Batch Name or 'd' for filename:**")
-    input1: Message = await bot.listen(editable.chat.id)
+    input1 = await bot.listen(editable.chat.id)
     b_name = file_name if input1.text == 'd' else input1.text
 
     await editable.edit("**Enter resolution (144, 240, 360, 480, 720, 1080):**")
-    input2: Message = await bot.listen(editable.chat.id)
-    raw_text2 = input2.text
-    
-    # রেজোলিউশন ম্যাপিং
-    res_dict = {"144": "256x144", "240": "426x240", "360": "640x360", "480": "854x480", "720": "1280x720", "1080": "1920x1080"}
-    res = res_dict.get(raw_text2, "UN")
+    input2 = await bot.listen(editable.chat.id)
+    raw_text2 = input2.text # এটা কোয়ালিটি হিসেবে কাজ করবে
 
-    await editable.edit("**Enter Thumb URL or 'No':**")
-    input6: Message = await bot.listen(editable.chat.id)
+    await editable.edit("**Enter Your Name or 'de' for default:**")
+    input3 = await bot.listen(editable.chat.id)
+    CR = f"[{m.from_user.first_name}](tg://user?id={m.from_user.id})" if input3.text == 'de' else input3.text
+
+    await editable.edit("**Enter Token (PW/Classplus) or 'No':**")
+    input4 = await bot.listen(editable.chat.id)
+    working_token = input4.text
+
+    await editable.edit("**Send Thumb URL or 'No':**")
+    input6 = await bot.listen(editable.chat.id)
     thumb_url = input6.text
     thumb = "No"
     if thumb_url.startswith("http"):
@@ -91,21 +97,65 @@ async def account_login(bot: Client, m: Message):
 
     await editable.delete()
 
+    # ৩. মেইন ডাউনলোড লুপ (একবারই হবে)
     for i in range(count - 1, len(links)):
         try:
-            name_part = links[i][0].strip()
+            name1 = re.sub(r'[\\/*?:"<>|]', '', links[i][0]).strip()
             url_part = links[i][1].strip()
+            
+            # লিঙ্ক ফরম্যাটিং
+            url_part = url_part.replace("file/d/","uc?export=download&id=").replace("www.youtube-nocookie.com/embed", "youtu.be").replace("?modestbranding=1", "").replace("/view?usp=sharing","")
             url = "https://" + url_part
 
-            # PW/Classplus Logic
-            if "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
-                # working_token আগে ইনপুট নিয়ে রাখতে হবে (আমি এখানে logic বজায় রাখলাম)
+            # বিশেষ অ্যাপ লজিক (PW/Classplus/Vision)
+            if "visionias" in url:
+                async with ClientSession() as session:
+                    async with session.get(url, headers={'User-Agent': 'Mozilla/5.0'}) as resp:
+                        text = await resp.text()
+                        match = re.search(r"(https://.*?playlist.m3u8.*?)\"", text)
+                        if match: url = match.group(1)
+
+            elif 'classplusapp' in url or "testbook.com" in url:
+                if '&' in url:
+                    main_url, contentId = url.split('&')
+                    params = {'contentId': contentId, 'offlineDownload': "false"}
+                    headers = {'x-access-token': working_token, 'api-version': '18'}
+                    res_json = requests.get("https://api.classplusapp.com/cams/uploader/video/jw-signed-url", params=params, headers=headers).json()
+                    url = res_json.get("url", url)
+
+            elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
                 url = f"https://anonymouspwplayer-907e62cf4891.herokuapp.com/pw?url={url}?token={working_token}"
 
-            # ফাইল নেম ক্লিনিং
-            clean_name = re.sub(r'[\\/*?:"<>|]', '', name_part).replace("https", "").replace("http", "").strip()
-            name = f'{str(count).zfill(3)}) {clean_name[:60]}'
+            # ফাইল নেম এবং ক্যাপশন
+            name = f'{str(count).zfill(3)}) {name1[:60]}'
+            cc = f'**{str(count).zfill(3)}.** {name1}\n**Batch:** {b_name}\n**By:** {CR}'
+
+            # ডাউনলোড এবং আপলোড
+            if ".pdf" in url:
+                os.system(f'yt-dlp -o "{name}.pdf" "{url}"')
+                await bot.send_document(m.chat.id, document=f'{name}.pdf', caption=cc)
+                os.remove(f'{name}.pdf')
+            elif "drive" in url:
+                ka = await helper.download(url, name)
+                await bot.send_document(m.chat.id, document=ka, caption=cc)
+                os.remove(ka)
+            else:
+                prog = await m.reply_text(f"**Downloading:-**\n`{name}`\nQuality: {raw_text2}")
+                res_file = await helper.download_video(url, name, raw_text2)
+                await prog.delete()
+                await helper.send_vid(bot, m, cc, res_file, thumb, name)
             
+            count += 1
+            time.sleep(1)
+
+        except Exception as e:
+            await m.reply_text(f"**Failed:** `{name}`\n**Error:** {str(e)}")
+            count += 1
+            continue
+
+    await m.reply_text("🔰 **Done Boss!** 🔰")
+
+bot.run()
             cc = f'**{str(count).zfill(3)}.** {clean_name}\n**Batch:** {b_name}\n**By:** {m.from_user.first_name}'
 
             if ".pdf" in url:
