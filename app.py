@@ -35,23 +35,16 @@ bot = Client(
 
 @bot.on_message(filters.command(["stop"]))
 async def cancel_command(bot: Client, m: Message):
-    user_id = m.from_user.id if m.from_user is not None else None
-    if user_id not in auth_users and user_id not in sudo_users:
-        await m.reply(f"**You Are Not Subscribed To This Bot\nContact - @Mahagoraxyz**", quote=True)
-        return
+    # ভেরিফিকেশন রিমুভ করা হয়েছে
     await m.reply_text("**STOPPED**🛑🛑", True)
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 @bot.on_message(filters.command(["start"]))
 async def account_login(bot: Client, m: Message):
     
-    user_id = m.from_user.id if m.from_user is not None else None
-
-    if user_id not in auth_users and user_id not in sudo_users:
-        await m.reply(f"**You Are Not Subscribed To This Bot\nContact - @Mahagoraxyz**", quote=True)
-        return
-        
+    # ভেরিফিকেশন রিমুভ করা হয়েছে, এখন সবাই ব্যবহার করতে পারবে
     editable = await m.reply_text(f"**Hey [{m.from_user.first_name}](tg://user?id={m.from_user.id})\nSend txt file**")
+    
     input: Message = await bot.listen(editable.chat.id)
     if input.document:
         x = await input.download()
@@ -120,6 +113,9 @@ async def account_login(bot: Client, m: Message):
     input3: Message = await bot.listen(editable.chat.id)
     raw_text3 = input3.text
     await input3.delete(True)
+    
+    # credit লজিক ঠিক রাখা হয়েছে
+    credit = f"[{m.from_user.first_name}](tg://user?id={m.from_user.id})"
     if raw_text3 == 'de':
         CR = credit
     else:
@@ -141,7 +137,7 @@ async def account_login(bot: Client, m: Message):
         getstatusoutput(f"wget '{thumb}' -O 'thumb.jpg'")
         thumb = "thumb.jpg"
     else:
-        thumb == "No"
+        thumb = "No"
 
     if len(links) == 1:
         count = 1
@@ -175,7 +171,7 @@ async def account_login(bot: Client, m: Message):
                     'device-details': 'Xiaomi_Redmi 7_SDK-32',
                     'device-id': 'c28d3cb16bbdac01',
                     'region': 'IN',
-                    'user-agent': 'Mobile-Android',
+                    'user-agent': 'Mozilla/5.0 (Linux; Android 12; RMX2121) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
                     'webengage-luid': '00000187-6fe4-5d41-a530-26186858be4c',
                     'accept-encoding': 'gzip'
                 }
